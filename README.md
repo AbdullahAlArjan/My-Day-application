@@ -6,6 +6,22 @@ Inspired by the clarity, tactile simplicity, and aesthetic polish of *Things 3*,
 
 ---
 
+## 📱 Download & Install Android App
+
+You can install **My Day** on your Android phone immediately using either method:
+
+### Option A: Direct APK Download (Recommended)
+- **Direct Download Link**: [**Download `app-debug.apk`**](https://github.com/AbdullahAlArjan/My-Day-application/releases/download/v1.0.0-apk/app-debug.apk) *(~4.2 MB)*
+- **GitHub Release Page**: [View Release `v1.0.0-apk`](https://github.com/AbdullahAlArjan/My-Day-application/releases/tag/v1.0.0-apk)
+- **Installation**: Tap the downloaded file on your Android device and tap **Install** (if prompted, allow install from your browser).
+
+### Option B: Instant PWA (No Download Required)
+1. Open Chrome on your Android phone and navigate to `http://<YOUR_PC_IP>:54321` (e.g. `http://192.168.100.12:54321` when running `npm run dev`).
+2. Tap the Chrome menu (`⋮`) and select **Install app** or **Add to Home screen**.
+3. It will install with full offline cache, app icon, and standalone launch.
+
+---
+
 ## Features
 
 - **Dynamic Daily Dashboard**:
