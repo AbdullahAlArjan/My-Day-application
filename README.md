@@ -172,7 +172,7 @@ In your Supabase Dashboard:
 1. Navigate to **Authentication** → **Providers** → **Email**.
 2. Ensure **Enable Email provider** is turned **ON**.
 3. (Optional) Toggle **Confirm email** according to your preference (for personal development, you may disable email confirmation to test immediately).
-4. Add your local URL (`http://localhost:5173`) to **URL Configuration** → **Redirect URLs**.
+4. Add your local URL (`http://localhost:54321`) to **URL Configuration** → **Redirect URLs**.
 
 ---
 
@@ -256,8 +256,8 @@ Or open the `android/` directory directly in **Android Studio**.
   - You can also click **Connect Supabase Now** in the top alert bar to set them interactively at runtime.
 - **Timezone conversion shifts dates?**
   - Tasks store calendar deadlines as Postgres `date` (`YYYY-MM-DD`). The custom `parseLocalDate` helper guarantees that midnight conversions across DST or UTC offsets never shift a task from one calendar day to another.
-- **Port 5173 already in use?**
-  - Vite automatically picks the next available port (e.g. 5174).
+- **Port 54321 already in use?**
+  - You can customize the port anytime via `PORT=your_port npm run dev` or change the `port` value in `vite.config.ts`.
 
 ---
 
