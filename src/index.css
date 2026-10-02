@@ -1,0 +1,124 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-50: #EEF2FF;
+  --brand-100: #E0E7FF;
+  --brand-500: #6366F1;
+  --brand-600: #4F46E5;
+  --brand-700: #4338CA;
+
+  --bg-canvas: #FAFAF8;
+  --bg-surface: #FFFFFF;
+  --bg-surface-hover: #F5F5F2;
+  --bg-subtle: #F0F0EB;
+  
+  --border-subtle: #E8E8E2;
+  --border-strong: #D5D5CD;
+
+  --text-primary: #1C1917;
+  --text-secondary: #57534E;
+  --text-muted: #8E8A84;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+.dark {
+  --bg-canvas: #121316;
+  --bg-surface: #1A1C22;
+  --bg-surface-hover: #22252D;
+  --bg-subtle: #2A2E38;
+  
+  --border-subtle: #282C35;
+  --border-strong: #383D4A;
+
+  --text-primary: #F4F4F5;
+  --text-secondary: #A1A1AA;
+  --text-muted: #64748B;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  user-select: none;
+}
+
+/* Allow text selection inside inputs and notes */
+input, textarea, p, span.selectable {
+  user-select: text;
+}
+
+/* Custom Sleek Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(140, 140, 140, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(140, 140, 140, 0.4);
+}
+
+/* Safe Area Insets for Mobile / Capacitor */
+.safe-pb {
+  padding-bottom: calc(var(--safe-bottom) + 1rem);
+}
+
+.safe-pt {
+  padding-top: calc(var(--safe-top) + 0.5rem);
+}
+
+/* Focus Ring */
+*:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+}
+
+/* Strikethrough Animation */
+.completed-strikethrough {
+  position: relative;
+  transition: color 0.2s ease;
+}
+
+.completed-strikethrough::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  background-color: currentColor;
+  opacity: 0.6;
+  transform: translateY(-50%);
+  transition: width 0.25s ease-out;
+}
+
+/* Hide spin buttons on number inputs */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
