@@ -9,6 +9,8 @@ jobs:
   build-apk:
     name: Build Android Debug APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -20,11 +22,12 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-      - name: Set up Java 17
+      - name: Set up Java 21 (Required by Capacitor 8 & AGP)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
+          cache: 'gradle'
 
       - name: Install npm dependencies
         run: npm ci
@@ -51,3 +54,17 @@ jobs:
         with:
           name: my-day-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      - name: Create or Update GitHub Release with APK
+        uses: softprops/action-gh-release@v2
+        continue-on-error: true
+        if: github.ref == 'refs/heads/main'
+        with:
+          tag_name: v1.0.0-apk
+          name: "My Day Android APK (v1.0.0)"
+          body: |
+            ### 📱 My Day — Personal Daily Task Planner
+            Direct download link for Android:
+            Download **`app-debug.apk`** below directly to your Android device to install.
+          files: android/app/build/outputs/apk/debug/app-debug.apk
