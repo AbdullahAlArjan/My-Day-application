@@ -76,12 +76,12 @@ export const TopPriorities: React.FC<TopPrioritiesProps> = ({
                   e.stopPropagation();
                   onToggleComplete(task);
                 }}
-                className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-emerald-600 dark:hover:text-emerald-400 active:scale-95 transition-all p-1 -m-1 rounded-md"
               >
-                <div className="w-4 h-4 rounded-md border border-[var(--border-strong)] group-hover:border-emerald-500 flex items-center justify-center">
-                  <Check className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="w-4 h-4 rounded-md border border-[var(--border-strong)] hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 flex items-center justify-center transition-colors">
+                  <Check className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400 stroke-[3]" />
                 </div>
-                <span>Done</span>
+                <span>Mark Done</span>
               </button>
 
               <span className="text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors flex items-center gap-0.5">

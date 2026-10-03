@@ -52,15 +52,45 @@ export function useCategories() {
     queryFn: async (): Promise<Category[]> => {
       if (!userId || isDemoUser) {
         const saved = localStorage.getItem('my_day_local_categories');
+        let categories = DEFAULT_CATEGORIES;
         if (saved) {
           try {
-            return JSON.parse(saved);
+            categories = JSON.parse(saved);
           } catch {
-            return DEFAULT_CATEGORIES;
+            categories = DEFAULT_CATEGORIES;
+          }
+        } else {
+          localStorage.setItem('my_day_local_categories', JSON.stringify(DEFAULT_CATEGORIES));
+        }
+
+        // Calculate live task counts for categories in demo mode
+        const savedTasks = localStorage.getItem('my_day_local_tasks');
+        let localTasks: any[] = [];
+        if (savedTasks) {
+          try {
+            localTasks = JSON.parse(savedTasks);
+          } catch {
+            localTasks = [];
           }
         }
-        localStorage.setItem('my_day_local_categories', JSON.stringify(DEFAULT_CATEGORIES));
-        return DEFAULT_CATEGORIES;
+
+        const countsMap = new Map<string, { total: number; completed: number }>();
+        localTasks.forEach((t) => {
+          if (t.category_id) {
+            const current = countsMap.get(t.category_id) || { total: 0, completed: 0 };
+            current.total += 1;
+            if (t.status === 'completed') {
+              current.completed += 1;
+            }
+            countsMap.set(t.category_id, current);
+          }
+        });
+
+        return categories.map((cat) => ({
+          ...cat,
+          task_count: countsMap.get(cat.id)?.total || 0,
+          completed_count: countsMap.get(cat.id)?.completed || 0,
+        }));
       }
       return categoryService.getCategories(userId);
     },
@@ -137,6 +167,26 @@ export function useCategories() {
         const current = query.data || [];
         const filtered = current.filter((c) => c.id !== categoryId);
         localStorage.setItem('my_day_local_categories', JSON.stringify(filtered));
+
+        // Update local tasks
+        const savedTasks = localStorage.getItem('my_day_local_tasks');
+        if (savedTasks) {
+          try {
+            const tasks: any[] = JSON.parse(savedTasks);
+            const updatedTasks = tasks.map((t) => {
+              if (t.category_id === categoryId) {
+                return {
+                  ...t,
+                  category_id: reassignAction === 'reassign' && targetCategoryId ? targetCategoryId : null,
+                };
+              }
+              return t;
+            });
+            localStorage.setItem('my_day_local_tasks', JSON.stringify(updatedTasks));
+          } catch (e) {
+            console.error(e);
+          }
+        }
         return;
       }
       return categoryService.deleteCategory(categoryId, reassignAction, targetCategoryId);

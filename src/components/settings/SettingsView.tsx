@@ -38,7 +38,7 @@ const COMMON_TIMEZONES = [
 
 export const SettingsView: React.FC = () => {
   const { settings, updateSettings } = useSettings();
-  const { user, profile } = useAuth();
+  const { user, profile, isDemoUser } = useAuth();
   const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -47,9 +47,23 @@ export const SettingsView: React.FC = () => {
   const [selectedTimezone, setSelectedTimezone] = useState(profile?.timezone || 'Asia/Amman');
 
   const handleExportData = async () => {
-    if (!user) return;
     try {
-      const data = await taskService.exportData(user.id);
+      let data: any;
+      if (isDemoUser || !user) {
+        const tasks = JSON.parse(localStorage.getItem('my_day_local_tasks') || '[]');
+        const categories = JSON.parse(localStorage.getItem('my_day_local_categories') || '[]');
+        const settings = JSON.parse(localStorage.getItem('my_day_local_settings') || '{}');
+        data = {
+          version: '1.0',
+          exported_at: new Date().toISOString(),
+          categories,
+          tasks,
+          settings,
+        };
+      } else {
+        data = await taskService.exportData(user.id);
+      }
+
       const jsonStr = JSON.stringify(data, null, 2);
       const blob = new Blob([jsonStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -58,6 +72,17 @@ export const SettingsView: React.FC = () => {
       a.download = `my-day-backup-${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
+
+      // Also copy to clipboard as convenient fallback on mobile
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+          await navigator.clipboard.writeText(jsonStr);
+          toast.success('Backup exported & copied to clipboard!');
+          return;
+        } catch {
+          // fallback
+        }
+      }
       toast.success('Task backup exported successfully!');
     } catch {
       toast.error('Failed to export data');
@@ -66,11 +91,24 @@ export const SettingsView: React.FC = () => {
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user) return;
+    if (!file) return;
 
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
+
+      if (isDemoUser || !user) {
+        if (parsed.tasks && Array.isArray(parsed.tasks)) {
+          localStorage.setItem('my_day_local_tasks', JSON.stringify(parsed.tasks));
+        }
+        if (parsed.categories && Array.isArray(parsed.categories)) {
+          localStorage.setItem('my_day_local_categories', JSON.stringify(parsed.categories));
+        }
+        toast.success('Data imported successfully!');
+        window.location.reload();
+        return;
+      }
+
       await taskService.importData(user.id, parsed);
       toast.success('Data imported successfully!');
       window.location.reload();
@@ -80,9 +118,16 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleClearAllData = async () => {
-    if (!user) return;
     setIsClearing(true);
     try {
+      if (isDemoUser || !user) {
+        localStorage.removeItem('my_day_local_tasks');
+        setShowClearConfirm(false);
+        toast.success('All tasks cleared successfully');
+        window.location.reload();
+        return;
+      }
+
       await taskService.clearAllTasks(user.id);
       setShowClearConfirm(false);
       toast.success('All tasks cleared successfully');

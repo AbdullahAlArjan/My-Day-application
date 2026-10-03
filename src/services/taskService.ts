@@ -168,9 +168,24 @@ export const taskService = {
 
   async updateTask(
     taskId: string,
-    updates: Partial<Omit<Task, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'category' | 'subtasks'>>
+    updates: Partial<Omit<Task, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'category' | 'subtasks'>> & {
+      subtasks?: Subtask[];
+      category?: unknown;
+    }
   ): Promise<Task> {
     const updatePayload: Record<string, unknown> = { ...updates };
+
+    // Remove relations that don't exist as columns in the `tasks` table
+    delete updatePayload.subtasks;
+    delete updatePayload.category;
+
+    // Convert empty string values to null for Postgres type safety
+    if (updatePayload.due_time === '') updatePayload.due_time = null;
+    if (updatePayload.due_date === '') updatePayload.due_date = null;
+    if (updatePayload.category_id === '') updatePayload.category_id = null;
+    if (updatePayload.reminder_at === '') updatePayload.reminder_at = null;
+    if (updatePayload.description === '') updatePayload.description = null;
+    if (updatePayload.notes === '') updatePayload.notes = null;
 
     if ('status' in updates) {
       if (updates.status === 'completed') {
@@ -180,19 +195,26 @@ export const taskService = {
       }
     }
 
-    const { data, error } = await supabase
-      .from('tasks')
-      .update(updatePayload)
-      .eq('id', taskId)
-      .select('*, category:categories(*), subtasks(*)')
-      .single();
+    // Only update tasks table if there are fields to update
+    let updatedTask: Task;
+    if (Object.keys(updatePayload).length > 0) {
+      const { data, error } = await supabase
+        .from('tasks')
+        .update(updatePayload)
+        .eq('id', taskId)
+        .select('*, category:categories(*), subtasks(*)')
+        .single();
 
-    if (error) {
-      console.error('Error updating task:', error);
-      throw error;
+      if (error) {
+        console.error('Error updating task:', error);
+        throw error;
+      }
+      updatedTask = data as Task;
+    } else {
+      const existing = await this.getTaskById(taskId);
+      if (!existing) throw new Error('Task not found');
+      updatedTask = existing;
     }
-
-    const updatedTask = data as Task;
 
     // Check for recurrence generation on complete
     if (updates.status === 'completed' && updatedTask.recurrence_rule && updatedTask.recurrence_rule.type !== 'none') {

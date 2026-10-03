@@ -189,7 +189,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     >
                       {format(day, 'd')}
                     </span>
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[var(--text-muted)] p-0.5">
+                    <span className="opacity-40 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity text-[var(--text-muted)] p-0.5">
                       <Plus className="w-3 h-3" />
                     </span>
                   </div>

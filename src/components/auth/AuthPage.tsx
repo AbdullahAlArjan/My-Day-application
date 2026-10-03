@@ -139,7 +139,6 @@ export const AuthPage: React.FC = () => {
             </Button>
           </form>
 
-          {/* Switch Modes */}
           <div className="mt-5 pt-4 border-t border-[var(--border-subtle)] text-center text-xs text-[var(--text-secondary)]">
             {mode === 'signin' ? (
               <p>
@@ -173,17 +172,30 @@ export const AuthPage: React.FC = () => {
               </p>
             )}
           </div>
+
+          {/* Divider & One-Tap Guest Access */}
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-[var(--border-subtle)]" />
+            </div>
+            <div className="relative flex justify-center text-[10px] uppercase">
+              <span className="bg-[var(--bg-surface)] px-2 text-[var(--text-muted)] font-semibold">Or</span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={enterDemoMode}
+            className="w-full text-xs font-semibold"
+          >
+            Continue as Guest (Instant Local Mode)
+          </Button>
         </div>
 
-        {/* Demo Mode Action if Supabase credentials not set or for instant testing */}
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={enterDemoMode}
-            className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors underline underline-offset-4"
-          >
-            Explore app in offline local demo mode
-          </button>
+        {/* Bottom info */}
+        <div className="text-center text-[11px] text-[var(--text-muted)]">
+          Private & offline-first. Your planner data stays on your device.
         </div>
       </div>
     </div>

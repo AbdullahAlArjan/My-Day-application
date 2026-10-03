@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Modal } from '@/components/common/Modal';
 import { Button } from '@/components/common/Button';
 import { useCategories } from '@/hooks/useCategories';
+import { useAuth } from '@/hooks/useAuth';
+import { subtaskService } from '@/services/subtaskService';
 import type { Task, PriorityLevel, Subtask } from '@/types/database';
 import {
   Calendar,
@@ -36,6 +39,8 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({
   onToggleComplete,
 }) => {
   const { categories } = useCategories();
+  const { isDemoUser } = useAuth();
+  const queryClient = useQueryClient();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -79,35 +84,113 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({
   };
 
   const handleToggleSubtask = async (subtask: Subtask) => {
+    const nextCompleted = !subtask.is_completed;
     const updatedSubtasks = subtasks.map((s) =>
-      s.id === subtask.id ? { ...s, is_completed: !s.is_completed } : s
+      s.id === subtask.id ? { ...s, is_completed: nextCompleted } : s
     );
     setSubtasks(updatedSubtasks);
-    await handleSaveField({ subtasks: updatedSubtasks });
+
+    if (isDemoUser) {
+      const saved = localStorage.getItem('my_day_local_tasks');
+      if (saved) {
+        try {
+          const tasks: Task[] = JSON.parse(saved);
+          const tIdx = tasks.findIndex((t) => t.id === task.id);
+          if (tIdx !== -1) {
+            tasks[tIdx].subtasks = updatedSubtasks;
+            localStorage.setItem('my_day_local_tasks', JSON.stringify(tasks));
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    } else {
+      try {
+        await subtaskService.updateSubtask(subtask.id, { is_completed: nextCompleted });
+        queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      } catch (err) {
+        console.error('Failed to toggle subtask:', err);
+      }
+    }
   };
 
   const handleAddSubtask = async () => {
     if (!newSubtaskTitle.trim()) return;
-    const newSub: Subtask = {
-      id: `subtask-${Date.now()}`,
-      task_id: task.id,
-      user_id: task.user_id,
-      title: newSubtaskTitle.trim(),
-      is_completed: false,
-      sort_order: subtasks.length + 1,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    const updated = [...subtasks, newSub];
-    setSubtasks(updated);
+    const trimmedTitle = newSubtaskTitle.trim();
     setNewSubtaskTitle('');
-    await handleSaveField({ subtasks: updated });
+
+    if (isDemoUser) {
+      const newSub: Subtask = {
+        id: `subtask-${Date.now()}`,
+        task_id: task.id,
+        user_id: task.user_id,
+        title: trimmedTitle,
+        is_completed: false,
+        sort_order: subtasks.length + 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      const updated = [...subtasks, newSub];
+      setSubtasks(updated);
+
+      const saved = localStorage.getItem('my_day_local_tasks');
+      if (saved) {
+        try {
+          const tasks: Task[] = JSON.parse(saved);
+          const tIdx = tasks.findIndex((t) => t.id === task.id);
+          if (tIdx !== -1) {
+            tasks[tIdx].subtasks = updated;
+            localStorage.setItem('my_day_local_tasks', JSON.stringify(tasks));
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    } else {
+      try {
+        const created = await subtaskService.createSubtask({
+          task_id: task.id,
+          user_id: task.user_id,
+          title: trimmedTitle,
+          sort_order: subtasks.length + 1,
+        });
+        setSubtasks((prev) => [...prev, created]);
+        queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      } catch (err) {
+        console.error('Failed to create subtask:', err);
+      }
+    }
   };
 
   const handleDeleteSubtask = async (subtaskId: string) => {
     const updated = subtasks.filter((s) => s.id !== subtaskId);
     setSubtasks(updated);
-    await handleSaveField({ subtasks: updated });
+
+    if (isDemoUser) {
+      const saved = localStorage.getItem('my_day_local_tasks');
+      if (saved) {
+        try {
+          const tasks: Task[] = JSON.parse(saved);
+          const tIdx = tasks.findIndex((t) => t.id === task.id);
+          if (tIdx !== -1) {
+            tasks[tIdx].subtasks = updated;
+            localStorage.setItem('my_day_local_tasks', JSON.stringify(tasks));
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    } else {
+      try {
+        await subtaskService.deleteSubtask(subtaskId);
+        queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      } catch (err) {
+        console.error('Failed to delete subtask:', err);
+      }
+    }
   };
 
   return (

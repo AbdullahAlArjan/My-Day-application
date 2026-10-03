@@ -99,6 +99,26 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   const recurrenceType = watch('recurrence_type');
 
+  // Ensure fresh date and category when modal opens or props change (e.g. clicking a date in Calendar)
+  React.useEffect(() => {
+    if (isOpen) {
+      reset({
+        title: '',
+        description: '',
+        notes: '',
+        category_id: defaultCategoryId || '',
+        priority: settings.default_priority || 'medium',
+        due_date: defaultDate || getTodayDateString(),
+        due_time: '',
+        reminder_at: '',
+        recurrence_type: 'none',
+        recurrence_interval: 1,
+        subtasks: [],
+      });
+      setNewSubtaskInput('');
+    }
+  }, [isOpen, defaultDate, defaultCategoryId, reset, settings.default_priority]);
+
   const handleFormSubmit = async (values: TaskFormData) => {
     let recurrenceRule: RecurrenceRule | null = null;
     if (values.recurrence_type !== 'none') {

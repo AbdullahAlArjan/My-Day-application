@@ -211,8 +211,8 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         </div>
       </div>
 
-      {/* More Options Dropdown */}
-      <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+      {/* More Options Dropdown - Visible on mobile touch, hover-revealed on desktop */}
+      <div className="opacity-75 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
         <Dropdown
           trigger={
             <button
