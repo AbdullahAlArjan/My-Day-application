@@ -42,69 +42,83 @@ const DEFAULT_CATEGORIES: Category[] = [
   },
 ];
 
+function getLocalCategoriesWithCounts(): Category[] {
+  const saved = localStorage.getItem('my_day_local_categories');
+  let categories = DEFAULT_CATEGORIES;
+  if (saved) {
+    try {
+      categories = JSON.parse(saved);
+    } catch {
+      categories = DEFAULT_CATEGORIES;
+    }
+  } else {
+    localStorage.setItem('my_day_local_categories', JSON.stringify(DEFAULT_CATEGORIES));
+  }
+
+  const savedTasks = localStorage.getItem('my_day_local_tasks');
+  let localTasks: any[] = [];
+  if (savedTasks) {
+    try {
+      localTasks = JSON.parse(savedTasks);
+    } catch {
+      localTasks = [];
+    }
+  }
+
+  const countsMap = new Map<string, { total: number; completed: number }>();
+  localTasks.forEach((t) => {
+    if (t.category_id) {
+      const current = countsMap.get(t.category_id) || { total: 0, completed: 0 };
+      current.total += 1;
+      if (t.status === 'completed') {
+        current.completed += 1;
+      }
+      countsMap.set(t.category_id, current);
+    }
+  });
+
+  return categories.map((cat) => ({
+    ...cat,
+    task_count: countsMap.get(cat.id)?.total || 0,
+    completed_count: countsMap.get(cat.id)?.completed || 0,
+  }));
+}
+
 export function useCategories() {
   const { user, isDemoUser } = useAuth();
   const queryClient = useQueryClient();
   const userId = user?.id;
 
+  const queryKey = ['categories', userId || 'local'];
+
   const query = useQuery({
-    queryKey: ['categories', userId],
+    queryKey,
     queryFn: async (): Promise<Category[]> => {
       if (!userId || isDemoUser) {
-        const saved = localStorage.getItem('my_day_local_categories');
-        let categories = DEFAULT_CATEGORIES;
-        if (saved) {
-          try {
-            categories = JSON.parse(saved);
-          } catch {
-            categories = DEFAULT_CATEGORIES;
-          }
-        } else {
-          localStorage.setItem('my_day_local_categories', JSON.stringify(DEFAULT_CATEGORIES));
-        }
-
-        // Calculate live task counts for categories in demo mode
-        const savedTasks = localStorage.getItem('my_day_local_tasks');
-        let localTasks: any[] = [];
-        if (savedTasks) {
-          try {
-            localTasks = JSON.parse(savedTasks);
-          } catch {
-            localTasks = [];
-          }
-        }
-
-        const countsMap = new Map<string, { total: number; completed: number }>();
-        localTasks.forEach((t) => {
-          if (t.category_id) {
-            const current = countsMap.get(t.category_id) || { total: 0, completed: 0 };
-            current.total += 1;
-            if (t.status === 'completed') {
-              current.completed += 1;
-            }
-            countsMap.set(t.category_id, current);
-          }
-        });
-
-        return categories.map((cat) => ({
-          ...cat,
-          task_count: countsMap.get(cat.id)?.total || 0,
-          completed_count: countsMap.get(cat.id)?.completed || 0,
-        }));
+        return getLocalCategoriesWithCounts();
       }
-      return categoryService.getCategories(userId);
+      try {
+        const remote = await categoryService.getCategories(userId);
+        if (remote && remote.length > 0) {
+          localStorage.setItem('my_day_local_categories', JSON.stringify(remote));
+        }
+        return remote;
+      } catch (err) {
+        console.warn('Backend getCategories failed, using local categories:', err);
+        return getLocalCategoriesWithCounts();
+      }
     },
-    enabled: !!userId,
+    enabled: true,
   });
 
   const createMutation = useMutation({
     mutationFn: async (newCat: { name: string; color: string; icon?: string }) => {
-      if (!userId) throw new Error('User not authenticated');
-      if (isDemoUser) {
-        const current = query.data || [];
+      const activeUserId = userId || 'demo-user-id-001';
+      const createLocal = () => {
+        const current = query.data || getLocalCategoriesWithCounts();
         const created: Category = {
           id: `cat-${Date.now()}`,
-          user_id: userId,
+          user_id: activeUserId,
           name: newCat.name,
           color: newCat.color,
           icon: newCat.icon || 'Folder',
@@ -117,17 +131,26 @@ export function useCategories() {
         const updated = [...current, created];
         localStorage.setItem('my_day_local_categories', JSON.stringify(updated));
         return created;
+      };
+
+      if (!userId || isDemoUser) {
+        return createLocal();
       }
-      return categoryService.createCategory({
-        user_id: userId,
-        name: newCat.name,
-        color: newCat.color,
-        icon: newCat.icon,
-        sort_order: (query.data?.length || 0) + 1,
-      });
+      try {
+        return await categoryService.createCategory({
+          user_id: userId,
+          name: newCat.name,
+          color: newCat.color,
+          icon: newCat.icon,
+          sort_order: (query.data?.length || 0) + 1,
+        });
+      } catch (err) {
+        console.warn('Backend createCategory failed, saving locally:', err);
+        return createLocal();
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories', userId] });
+      queryClient.invalidateQueries({ queryKey });
     },
   });
 
@@ -139,17 +162,28 @@ export function useCategories() {
       id: string;
       updates: Partial<Omit<Category, 'id' | 'user_id' | 'created_at' | 'updated_at'>>;
     }) => {
-      if (isDemoUser) {
-        const current = query.data || [];
-        const updated = current.map((c) => (c.id === id ? { ...c, ...updates, updated_at: new Date().toISOString() } : c));
+      const updateLocal = () => {
+        const current = query.data || getLocalCategoriesWithCounts();
+        const updated = current.map((c) =>
+          c.id === id ? { ...c, ...updates, updated_at: new Date().toISOString() } : c
+        );
         localStorage.setItem('my_day_local_categories', JSON.stringify(updated));
         return updated.find((c) => c.id === id)!;
+      };
+
+      if (!userId || isDemoUser) {
+        return updateLocal();
       }
-      return categoryService.updateCategory(id, updates);
+      try {
+        return await categoryService.updateCategory(id, updates);
+      } catch (err) {
+        console.warn('Backend updateCategory failed, updating locally:', err);
+        return updateLocal();
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories', userId] });
-      queryClient.invalidateQueries({ queryKey: ['tasks', userId] });
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['tasks', userId || 'local'] });
     },
   });
 
@@ -163,12 +197,11 @@ export function useCategories() {
       reassignAction: 'unassign' | 'reassign';
       targetCategoryId?: string;
     }) => {
-      if (isDemoUser) {
-        const current = query.data || [];
+      const deleteLocal = () => {
+        const current = query.data || getLocalCategoriesWithCounts();
         const filtered = current.filter((c) => c.id !== categoryId);
         localStorage.setItem('my_day_local_categories', JSON.stringify(filtered));
 
-        // Update local tasks
         const savedTasks = localStorage.getItem('my_day_local_tasks');
         if (savedTasks) {
           try {
@@ -187,13 +220,22 @@ export function useCategories() {
             console.error(e);
           }
         }
+      };
+
+      if (!userId || isDemoUser) {
+        deleteLocal();
         return;
       }
-      return categoryService.deleteCategory(categoryId, reassignAction, targetCategoryId);
+      try {
+        await categoryService.deleteCategory(categoryId, reassignAction, targetCategoryId);
+      } catch (err) {
+        console.warn('Backend deleteCategory failed, deleting locally:', err);
+        deleteLocal();
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories', userId] });
-      queryClient.invalidateQueries({ queryKey: ['tasks', userId] });
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['tasks', userId || 'local'] });
     },
   });
 

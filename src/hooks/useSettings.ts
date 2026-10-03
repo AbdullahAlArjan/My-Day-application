@@ -19,31 +19,44 @@ const DEFAULT_SETTINGS: UserSettings = {
   updated_at: new Date().toISOString(),
 };
 
+function getLocalSettings(): UserSettings {
+  try {
+    const saved = localStorage.getItem('my_day_local_settings');
+    if (saved) {
+      return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+    }
+  } catch {}
+  return DEFAULT_SETTINGS;
+}
+
 export function useSettings() {
   const { user, isDemoUser } = useAuth();
   const queryClient = useQueryClient();
   const userId = user?.id;
 
   const query = useQuery({
-    queryKey: ['settings', userId],
+    queryKey: ['settings', userId || 'guest'],
     queryFn: async (): Promise<UserSettings> => {
+      const local = getLocalSettings();
       if (!userId || isDemoUser) {
-        const saved = localStorage.getItem('my_day_local_settings');
-        if (saved) {
-          try {
-            return JSON.parse(saved);
-          } catch {
-            return DEFAULT_SETTINGS;
-          }
-        }
-        return DEFAULT_SETTINGS;
+        return local;
       }
-      return settingsService.getSettings(userId);
+      try {
+        const remote = await settingsService.getSettings(userId);
+        if (remote) {
+          localStorage.setItem('my_day_local_settings', JSON.stringify(remote));
+          return remote;
+        }
+        return local;
+      } catch (err) {
+        console.warn('Backend getSettings failed, using local settings:', err);
+        return local;
+      }
     },
-    enabled: !!userId,
+    staleTime: 1000 * 60 * 5,
   });
 
-  const settings = query.data || DEFAULT_SETTINGS;
+  const settings = query.data || getLocalSettings();
 
   useEffect(() => {
     if (settings) {
@@ -54,31 +67,58 @@ export function useSettings() {
 
   const updateMutation = useMutation({
     mutationFn: async (updates: Partial<Omit<UserSettings, 'user_id' | 'updated_at'>>) => {
-      if (!userId || isDemoUser) {
-        const updated = { ...settings, ...updates, updated_at: new Date().toISOString() };
-        localStorage.setItem('my_day_local_settings', JSON.stringify(updated));
-        return updated;
+      const current = query.data || getLocalSettings();
+      const updated: UserSettings = {
+        ...current,
+        ...updates,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Always save locally for instant response & offline resilience
+      localStorage.setItem('my_day_local_settings', JSON.stringify(updated));
+
+      if (userId && !isDemoUser) {
+        try {
+          return await settingsService.updateSettings(userId, updates);
+        } catch (err) {
+          console.warn('Cloud update failed, stored in localStorage:', err);
+          return updated;
+        }
       }
-      return settingsService.updateSettings(userId, updates);
+      return updated;
     },
     onMutate: async (newUpdates) => {
-      await queryClient.cancelQueries({ queryKey: ['settings', userId] });
-      const previous = queryClient.getQueryData<UserSettings>(['settings', userId]);
-      if (previous) {
-        queryClient.setQueryData<UserSettings>(['settings', userId], {
-          ...previous,
-          ...newUpdates,
-        });
+      // 1. Immediately apply visual theme changes with 0ms delay!
+      if (newUpdates.theme) {
+        applyTheme(newUpdates.theme);
       }
-      return { previous };
+      if (newUpdates.accent_color) {
+        applyAccentColor(newUpdates.accent_color);
+      }
+
+      // 2. Optimistically update React Query cache
+      const cacheKey = ['settings', userId || 'guest'];
+      await queryClient.cancelQueries({ queryKey: cacheKey });
+      const previous = queryClient.getQueryData<UserSettings>(cacheKey) || getLocalSettings();
+      const optimistic: UserSettings = {
+        ...previous,
+        ...newUpdates,
+        updated_at: new Date().toISOString(),
+      };
+      queryClient.setQueryData<UserSettings>(cacheKey, optimistic);
+
+      return { previous, cacheKey };
     },
     onError: (_err, _variables, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(['settings', userId], context.previous);
+        queryClient.setQueryData(context.cacheKey, context.previous);
+        applyTheme(context.previous.theme);
+        applyAccentColor(context.previous.accent_color);
       }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings', userId] });
+    onSettled: (_data, _error, _variables, context) => {
+      const cacheKey = context?.cacheKey || ['settings', userId || 'guest'];
+      queryClient.invalidateQueries({ queryKey: cacheKey });
     },
   });
 

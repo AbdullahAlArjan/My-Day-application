@@ -36,6 +36,8 @@ const COMMON_TIMEZONES = [
   'Australia/Sydney',
 ];
 
+import { BackendStatusCard } from './BackendStatusCard';
+
 export const SettingsView: React.FC = () => {
   const { settings, updateSettings } = useSettings();
   const { user, profile, isDemoUser } = useAuth();
@@ -147,6 +149,9 @@ export const SettingsView: React.FC = () => {
           Customize themes, regional standards, and your personal workflow.
         </p>
       </div>
+
+      {/* BACKEND & CLOUD SYNC DIAGNOSTICS */}
+      <BackendStatusCard />
 
       {/* 1. APPEARANCE & THEME */}
       <section className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 shadow-subtle flex flex-col gap-4">

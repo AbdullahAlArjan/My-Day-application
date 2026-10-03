@@ -54,17 +54,37 @@ export const settingsService = {
     userId: string,
     updates: Partial<Omit<UserSettings, 'user_id' | 'updated_at'>>
   ): Promise<UserSettings> {
-    const { data, error } = await supabase
-      .from('user_settings')
-      .update(updates)
-      .eq('user_id', userId)
-      .select()
-      .single();
+    const payload = {
+      user_id: userId,
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
 
-    if (error) {
-      console.error('Error updating settings:', error);
-      throw error;
+    try {
+      const { data, error } = await supabase
+        .from('user_settings')
+        .upsert(payload, { onConflict: 'user_id' })
+        .select()
+        .single();
+
+      if (error) {
+        console.warn('Supabase updateSettings error, using local fallback:', error);
+        return {
+          user_id: userId,
+          ...DEFAULT_SETTINGS,
+          ...updates,
+          updated_at: new Date().toISOString(),
+        } as UserSettings;
+      }
+      return data;
+    } catch (err) {
+      console.warn('Network/Supabase error updating settings:', err);
+      return {
+        user_id: userId,
+        ...DEFAULT_SETTINGS,
+        ...updates,
+        updated_at: new Date().toISOString(),
+      } as UserSettings;
     }
-    return data;
   },
 };

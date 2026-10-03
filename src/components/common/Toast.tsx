@@ -4,7 +4,7 @@ import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 export interface ToastMessage {
   id: string;
-  type: 'success' | 'error' | 'info';
+  type: 'success' | 'error' | 'info' | 'warning';
   title?: string;
   message: string;
   action?: {
@@ -19,6 +19,7 @@ interface ToastContextType {
   success: (message: string, action?: ToastMessage['action']) => void;
   error: (message: string, action?: ToastMessage['action']) => void;
   info: (message: string, action?: ToastMessage['action']) => void;
+  warning: (message: string, action?: ToastMessage['action']) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -66,8 +67,15 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     [showToast]
   );
 
+  const warning = useCallback(
+    (message: string, action?: ToastMessage['action']) => {
+      showToast({ type: 'warning', message, action });
+    },
+    [showToast]
+  );
+
   return (
-    <ToastContext.Provider value={{ showToast, success, error, info }}>
+    <ToastContext.Provider value={{ showToast, success, error, info, warning }}>
       {children}
       <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
         <AnimatePresence>
@@ -86,6 +94,9 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 )}
                 {toast.type === 'error' && (
                   <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+                )}
+                {toast.type === 'warning' && (
+                  <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
                 )}
                 {toast.type === 'info' && (
                   <Info className="w-4 h-4 text-brand-500 shrink-0" />
