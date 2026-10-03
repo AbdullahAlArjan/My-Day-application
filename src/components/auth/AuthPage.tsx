@@ -29,15 +29,27 @@ export const AuthPage: React.FC = () => {
         if (password.length < 6) {
           throw new Error('Password must be at least 6 characters');
         }
-        await signUp(email.trim(), password, displayName.trim());
-        setSuccessMsg('Account created successfully! Please check your email if confirmation is required.');
+        const data = await signUp(email.trim(), password, displayName.trim());
+        if (data?.session) {
+          return;
+        }
+        setSuccessMsg(
+          'Account created! Please check your email to confirm your account (or disable "Confirm email" in Supabase to allow instant login).'
+        );
       } else if (mode === 'forgot') {
         await resetPassword(email.trim());
         setSuccessMsg('Password reset instructions sent to your email.');
       }
     } catch (err: any) {
       console.error('Auth error:', err);
-      const message = err?.message || 'Authentication failed. Please check your credentials.';
+      let message = err?.message || 'Authentication failed. Please check your credentials.';
+      if (message.toLowerCase().includes('email not confirmed')) {
+        message =
+          'Email not confirmed yet. Supabase requires email confirmation before login. Please check your inbox/spam, or turn off "Confirm email" in Supabase Authentication -> Providers -> Email to log in immediately without confirmation.';
+      } else if (message.toLowerCase().includes('rate limit')) {
+        message =
+          'Supabase email sending limit exceeded (3/hr on free tier). Please disable "Confirm email" in Supabase Dashboard -> Authentication -> Providers -> Email to allow instant logins without emails.';
+      }
       setErrorMsg(message);
     } finally {
       setIsLoading(false);

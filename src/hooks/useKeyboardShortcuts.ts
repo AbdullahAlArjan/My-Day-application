@@ -28,6 +28,8 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
         }
       }
 
+      if (!e.key) return;
+
       // Escape is always allowed to dismiss modals
       if (e.key === 'Escape') {
         if (handlers.onEscape) {

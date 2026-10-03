@@ -13,7 +13,7 @@ interface AuthContextType {
   isConfigured: boolean;
   isDemoUser: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, displayName?: string) => Promise<void>;
+  signUp: (email: string, password: string, displayName?: string) => Promise<any>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
@@ -126,7 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, displayName?: string) => {
     setIsLoading(true);
     try {
-      await authService.signUp(email, password, displayName);
+      return await authService.signUp(email, password, displayName);
     } finally {
       setIsLoading(false);
     }
